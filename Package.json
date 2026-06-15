@@ -1,0 +1,14 @@
+{
+  "name": "sharechat-quicktv-proxy",
+  "version": "1.0.0",
+  "description": "ShareChat QuickTV Premium Proxy - BAD BOY Edition",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
