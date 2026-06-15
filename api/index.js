@@ -1,181 +1,161 @@
-// api/index.js - ShareChat QuickTV Proxy (Same logic as Story Max)
+// api/index.js - Fixed authentication issues
 
 export default async function handler(req, res) {
-    const urlPath = req.headers['x-invoke-path'] || req.url;
+    // Get the actual path from request
+    let urlPath = req.url;
+    
+    // Remove query parameters if needed
+    const queryIndex = urlPath.indexOf('?');
+    if (queryIndex !== -1) {
+        urlPath = urlPath.substring(0, queryIndex);
+    }
+    
     const method = req.method;
     const targetBaseUrl = "https://apis.sharechat.com";
 
-    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-
-    // Fake Premium Response for QuickTV (Subscription)
-    if (urlPath.includes('/subscription/manage')) {
-        return res.status(200).json({ 
-            code: 200, 
-            message: "Success", 
-            data: { 
-                subStat: "2", 
-                plan: "Premium", 
-                isPremium: true,
-                validity: "Lifetime Active",
-                message: "Enjoy Premium [ BAD BOY ]"
-            } 
-        });
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    
+    // Handle OPTIONS preflight
+    if (method === 'OPTIONS') {
+        return res.status(200).end();
     }
 
-    if (urlPath.includes('/subscription/state')) {
-        return res.status(200).json({ 
-            code: 200, 
-            message: "Success", 
-            data: { 
-                subStat: "2", 
-                mc: "0",
-                isSubscribed: true,
-                expiryDate: "4102444800000"
-            } 
-        });
+    // BLOCK all Cloudflare CDN requests
+    if (urlPath.includes('/cdn-cgi/') || urlPath.includes('cf.errors.css') || urlPath.includes('browser-bar.png')) {
+        return res.status(404).json({ error: "Not found" });
     }
 
-    // Block Analytics/Heartbeat requests
-    const isAnalyticsUrl = urlPath.includes('/heartbeat') || urlPath.includes('/impression') || urlPath.includes('/analytics') || urlPath.includes('/track');
-    if (isAnalyticsUrl) {
-        return res.status(200).json({ status: 200, message: "SUCCESS", data: null });
-    }
-
-    // [BAD BOY] Branding Injector (Optional)
-    const applyBadBoyBranding = (obj) => {
-        const brandTag = " \n [ BAD BOY ] ";
-        const targetKeys = ['title', 'name', 'showName', 'videoTitle', 'description', 'text', 'category'];
-
-        if (typeof obj === 'object' && obj !== null) {
-            for (let key in obj) {
-                if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
-                    if (!obj[key].includes('[ BAD BOY ]')) {
-                        obj[key] = obj[key].replace(/\[ MODS \]/g, '').replace(/\[ REAL APK \]/g, '').trim() + brandTag;
-                    }
-                } else if (typeof obj[key] === 'object') {
-                    applyBadBoyBranding(obj[key]);
-                }
-            }
-        }
-    };
-
-    // PREMIUM ACCOUNT CREDENTIALS (Your ShareChat Premium Account Details)
-    const QUICKTV_PREMIUM = {
-        // Device & User Info
-        deviceId: "6caec8fc10dee519",
-        userId: "3377779474",
-        secret: "e91c564faeac1dee8135",
-        authToken: "25efe4b6de088d05c888",
-        authSessionId: "35e96e72-dda6-47d8-9dc6-229899cb3b85",
-        sessionId: "3377779474_b2de8cd3-ab57-4348-8013-ce15111a7c33",
-        advertisingId: "da3a7af4-6991-421f-8750-d548adcee566",
+    // FIXED: Premium Credentials (Your actual working credentials)
+    const QUICKTV_CREDENTIALS = {
+        // Primary Headers
+        'x-sharechat-userid': '3377779474',
+        'x-sharechat-secret': 'e91c564faeac1dee8135',
+        'x-sharechat-auth-token': '25efe4b6de088d05c888',
+        'x-sharechat-auth-session-id': '35e96e72-dda6-47d8-9dc6-229899cb3b85',
+        'session-id': '3377779474_b2de8cd3-ab57-4348-8013-ce15111a7c33',
+        'device-id': '6caec8fc10dee519',
+        'advertising-id': 'da3a7af4-6991-421f-8750-d548adcee566',
         
-        // App Info
-        appVersion: "202615003",
-        appVersionName: "2026.15.03",
-        codePushVersion: "20261004",
-        packageName: "in.mohalla.quicktv",
-        clientType: "android",
-        client: "Android",
+        // App Version
+        'auth-version': 'V2',
+        'code-push-version': '20261004',
+        'app-version': '202615003',
+        'app-version-name': '2026.15.03',
+        'client-type': 'android',
+        'package-name': 'in.mohalla.quicktv',
+        'x-tenant': 'quicktv',
+        'client': 'Android',
         
-        // System Info
-        osVersion: "29",
-        deviceRamGb: "3",
-        deviceHighPerforming: "true",
+        // Device Info
+        'os-version': '29',
+        'device-ram-gb': '3',
+        'device-high-performing': 'true',
         
-        // Location & Network
-        region: "maharashtra",
-        city: "mumbai",
-        isp: "reliance jio infocomm limited",
-        countryShort: "in",
-        radioType: "wifi",
+        // Location
+        'region': 'maharashtra',
+        'city': 'mumbai',
+        'isp': 'reliance jio infocomm limited',
+        'country-short': 'in',
+        'radiotype': 'wifi',
         
-        // Auth
-        authVersion: "V2",
-        tenant: "quicktv",
+        // Language
+        'locale-language': 'Hindi',
+        'locale-skin': 'ENGLISH',
+        'locale-skin-language': 'English',
+        
+        // Install time
+        'x-sharechat-install-time': '1781458702',
         
         // User Agent
-        userAgent: "Mozilla/5.0 (Linux; Android 10; Redmi Note 7S Build/QKQ1.190910.002;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4638.74 Mobile Safari/537.36",
-        
-        // Install Time
-        installTime: "1781458702"
+        'user-agent': 'Mozilla/5.0 (Linux; Android 10; Redmi Note 7S Build/QKQ1.190910.002;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4638.74 Mobile Safari/537.36'
     };
+
+    // Special handling for problematic endpoints
+    if (urlPath === '/' || urlPath === '') {
+        return res.status(200).json({ 
+            status: "ok", 
+            message: "ShareChat QuickTV Proxy Running",
+            premium: true 
+        });
+    }
+
+    // Handle refresh token endpoint
+    if (urlPath.includes('/refreshToken')) {
+        return res.status(200).json({
+            status: 200,
+            message: "Token refreshed",
+            data: {
+                authToken: QUICKTV_CREDENTIALS['x-sharechat-auth-token'],
+                sessionId: QUICKTV_CREDENTIALS['session-id']
+            }
+        });
+    }
+
+    // Handle splashConfig
+    if (urlPath.includes('/splashConfig')) {
+        return res.status(200).json({
+            status: 200,
+            data: {
+                splashImage: "https://example.com/splash.jpg",
+                config: { autoPlay: true, premiumOnly: false }
+            }
+        });
+    }
+
+    // Handle getLangList
+    if (urlPath.includes('/getLangList')) {
+        return res.status(200).json({
+            status: 200,
+            data: {
+                languages: [
+                    { code: "hi", name: "Hindi", isDefault: true },
+                    { code: "en", name: "English", isDefault: false }
+                ]
+            }
+        });
+    }
 
     try {
-        const targetUrl = targetBaseUrl + urlPath;
+        // Construct target URL
+        const targetUrl = targetBaseUrl + req.url;
+        
+        console.log(`[Proxy] ${method} ${targetUrl}`);
 
-        // Prepare headers from original request
-        const headers = { ...req.headers };
-        
-        // Remove problematic headers
-        delete headers['host'];
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['connection'];
-        
-        // OVERRIDE WITH PREMIUM ACCOUNT CREDENTIALS
-        // Device & User Headers
-        headers['device-id'] = QUICKTV_PREMIUM.deviceId;
-        headers['x-sharechat-userid'] = QUICKTV_PREMIUM.userId;
-        headers['x-sharechat-secret'] = QUICKTV_PREMIUM.secret;
-        headers['x-sharechat-auth-token'] = QUICKTV_PREMIUM.authToken;
-        headers['x-sharechat-auth-session-id'] = QUICKTV_PREMIUM.authSessionId;
-        headers['session-id'] = QUICKTV_PREMIUM.sessionId;
-        headers['advertising-id'] = QUICKTV_PREMIUM.advertisingId;
-        
-        // App Headers
-        headers['app-version'] = QUICKTV_PREMIUM.appVersion;
-        headers['app-version-name'] = QUICKTV_PREMIUM.appVersionName;
-        headers['code-push-version'] = QUICKTV_PREMIUM.codePushVersion;
-        headers['package-name'] = QUICKTV_PREMIUM.packageName;
-        headers['client-type'] = QUICKTV_PREMIUM.clientType;
-        headers['client'] = QUICKTV_PREMIUM.client;
-        
-        // System Headers
-        headers['os-version'] = QUICKTV_PREMIUM.osVersion;
-        headers['device-ram-gb'] = QUICKTV_PREMIUM.deviceRamGb;
-        headers['device-high-performing'] = QUICKTV_PREMIUM.deviceHighPerforming;
-        
-        // Location Headers
-        headers['region'] = QUICKTV_PREMIUM.region;
-        headers['city'] = QUICKTV_PREMIUM.city;
-        headers['isp'] = QUICKTV_PREMIUM.isp;
-        headers['country-short'] = QUICKTV_PREMIUM.countryShort;
-        headers['radiotype'] = QUICKTV_PREMIUM.radioType;
-        
-        // Auth Headers
-        headers['auth-version'] = QUICKTV_PREMIUM.authVersion;
-        headers['x-tenant'] = QUICKTV_PREMIUM.tenant;
-        headers['x-sharechat-install-time'] = QUICKTV_PREMIUM.installTime;
-        
-        // User Agent
-        headers['user-agent'] = QUICKTV_PREMIUM.userAgent;
-        
-        // Content Headers
-        headers['accept'] = 'application/json';
-        headers['accept-charset'] = 'UTF-8';
-        headers['content-type'] = 'application/json';
-        headers['cache-control'] = 'no-cache';
-        
-        // Add timestamp
-        headers['ts'] = Math.floor(Date.now() / 1000).toString();
-        
-        // Spoof IP
-        headers['x-forwarded-for'] = '122.168.2.40';
-        headers['x-real-ip'] = '122.168.2.40';
-        headers['x-client-ip'] = '122.168.2.40';
-        
-        // Remove any tracking headers
-        delete headers['x-request-id'];
-        delete headers['x-b3-traceid'];
-        delete headers['x-cloud-trace-context'];
-        delete headers['x-vercel-id'];
-        delete headers['x-vercel-proxy-signature'];
+        // Prepare headers - merge request headers with premium credentials
+        const headers = {
+            ...QUICKTV_CREDENTIALS,
+            'host': 'apis.sharechat.com',
+            'accept': 'application/json, text/plain, */*',
+            'accept-encoding': 'gzip, deflate, br',
+            'accept-language': 'en-US,en;q=0.9,hi;q=0.8',
+            'cache-control': 'no-cache',
+            'pragma': 'no-cache',
+            'sec-ch-ua': '"Android WebView";v="101", "Chromium";v="101", "Not A Brand";v="99"',
+            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Android"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-site'
+        };
+
+        // Remove any problematic headers from original request
+        const excludeHeaders = ['host', 'connection', 'content-length', 'x-vercel-*', 'x-forwarded-*'];
+        Object.keys(req.headers).forEach(key => {
+            if (!excludeHeaders.some(h => key.toLowerCase().startsWith(h.replace('*', '')))) {
+                if (!QUICKTV_CREDENTIALS[key] && !headers[key]) {
+                    headers[key] = req.headers[key];
+                }
+            }
+        });
 
         // Prepare fetch options
         const fetchOptions = {
             method: method,
             headers: headers,
+            redirect: 'follow'
         };
 
         // Add body for non-GET requests
@@ -185,45 +165,44 @@ export default async function handler(req, res) {
 
         // Make the actual API call
         const response = await fetch(targetUrl, fetchOptions);
-        const contentType = response.headers.get('content-type') || '';
+        
+        console.log(`[Proxy] Response status: ${response.status}`);
 
-        // Handle JSON response
+        // Get response data
+        const contentType = response.headers.get('content-type') || '';
+        
         if (contentType.includes('application/json')) {
             let data = await response.json();
             
-            // Apply Bad Boy branding (optional)
-            if (!urlPath.includes('/heartbeat') && !urlPath.includes('/track')) {
-                applyBadBoyBranding(data);
-            }
-            
-            // Add premium status in response
-            if (urlPath.includes('/subscription')) {
-                data.premium = true;
-                data.premium_by = "BAD BOY";
+            // Inject premium status in responses
+            if (typeof data === 'object' && data !== null) {
+                data._premium = true;
+                data._premium_by = "BAD BOY";
+                data._proxy_status = "active";
             }
             
             return res.status(response.status).json(data);
-        } 
-        // Handle binary/other responses
-        else {
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
-            return res.status(response.status).send(buffer);
+        } else {
+            const text = await response.text();
+            res.setHeader('content-type', contentType);
+            return res.status(response.status).send(text);
         }
 
     } catch (error) {
-        console.error('Proxy Error:', error);
+        console.error('[Proxy] Error:', error);
         return res.status(500).json({ 
-            code: 500, 
-            message: "Proxy Error: " + error.message,
-            premium_status: "active",
-            note: "BAD BOY Premium Proxy"
+            error: "Proxy error",
+            message: error.message,
+            premium_status: "active"
         });
     }
 }
+
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '10mb'
+        },
+        externalResolver: true
+    }
+};
