@@ -1,119 +1,63 @@
+const TARGET_BASE = "https://apis.sharechat.com";
+
+// Valid auth token from your smali/app
+const VALID_AUTH_TOKEN = "25efe4b6de088d05c888";
+const VALID_USER_ID = "3377779474";
+const DEVICE_ID = "6caec8fc10dee519";
+
 export default async function handler(req, res) {
-    const urlPath = req.headers['x-invoke-path'] || req.url;
-    const method = req.method;
-    
-    // Sirf QuickTV/Sharechat APIs
-    const SHARECHAT_BASE_URL = "https://apis.sharechat.com";
+  let urlPath = req.headers['x-invoke-path'] || req.url;
 
-    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+  // Handle CORS if needed
+  res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // ✅ QuickTV Subscription API - Main target
-    if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/manage')) {
-        const realApiUrl = SHARECHAT_BASE_URL + urlPath;
-        
-        const headers = { ...req.headers };
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['host'];
-        
-        const response = await fetch(realApiUrl, {
-            method: method,
-            headers: headers
-        });
-        
-        let data = await response.json();
-        
-        // 🔥 BAD BOY INJECTION
-        if (data.state === "ACTIVE_SUBSCRIPTION") {
-            data.state = "🔥 ACTIVE [ BAD BOY PREMIUM ] 🔥";
-            data.productId = "badboy_lifetime_pro_max";
-            data.subsId = "BB_" + (data.subsId || "UNLIMITED");
-            
-            if (data.banner) {
-                data.banner.bannerCtaText = "✨ BAD BOY MODE ACTIVE ✨";
-                data.banner.bannerTitle = "💀 BAD BOY QuickTV Premium 💀";
-                data.banner.bannerPaymentKey = "⏰ VALID UNTIL";
-                data.banner.bannerPaymentValue = "31 DECEMBER 9999 [ LIFETIME ]";
-                data.banner.bannerBenefitsTitle = "⚡ BAD BOY EXCLUSIVE BENEFITS ⚡";
-                
-                if (data.banner.benefits && Array.isArray(data.banner.benefits)) {
-                    data.banner.benefits = data.banner.benefits.map(benefit => ({
-                        ...benefit,
-                        name: benefit.name + " [ BAD BOY ]"
-                    }));
-                }
-                
-                // Extra Bad Boy benefits
-                const extraBenefits = [
-                    { image: "", name: "🎁 Exclusive Bad Boy Content [ BAD BOY ]" },
-                    { image: "", name: "🚫 Zero Ads Forever [ BAD BOY ]" },
-                    { image: "", name: "📱 4K + HDR Quality [ BAD BOY ]" }
-                ];
-                
-                if (data.banner.benefits) {
-                    data.banner.benefits.push(...extraBenefits);
-                } else {
-                    data.banner.benefits = extraBenefits;
-                }
-            }
-        }
-        
-        return res.status(200).json(data);
-    }
+  // === QUICKTV PREMIUM FAKE RESPONSES ===
+  if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/manage')) {
+    return res.status(200).json({
+      status: "success",
+      data: {
+        is_premium: true,
+        plan_type: "lifetime",
+        expiry_timestamp: 4102444800000, // year 2099
+        features: ["no_ads", "downloads", "hd_streaming"]
+      }
+    });
+  }
 
-    // ✅ Other Sharechat APIs - Pass through with Bad Boy touch
-    try {
-        const targetUrl = SHARECHAT_BASE_URL + urlPath;
-        
-        const headers = { ...req.headers };
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['host'];
-        // Keep original device-id, auth tokens etc
-        
-        const fetchOptions = {
-            method: method,
-            headers: headers,
-        };
+  // Check subscription status
+  if (urlPath.includes('/quicktv-service/v2/user/subscription')) {
+    return res.status(200).json({
+      is_active: true,
+      plan: "premium_lifetime",
+      valid_until: "2099-12-31"
+    });
+  }
 
-        if (method !== 'GET' && method !== 'HEAD' && req.body) {
-            fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-        }
+  // Forward real request to ShareChat API
+  const targetUrl = TARGET_BASE + urlPath;
+  
+  const headers = { ...req.headers };
+  
+  // Override with working credentials from app
+  headers['x-sharechat-auth-token'] = VALID_AUTH_TOKEN;
+  headers['x-sharechat-userid'] = VALID_USER_ID;
+  headers['device-id'] = DEVICE_ID;
+  headers['host'] = 'apis.sharechat.com';
+  
+  // Remove problematic headers
+  delete headers['accept-encoding'];
+  delete headers['content-length'];
 
-        const response = await fetch(targetUrl, fetchOptions);
-        const contentType = response.headers.get('content-type') || '';
+  try {
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers: headers,
+      body: req.method !== 'GET' && req.body ? JSON.stringify(req.body) : undefined
+    });
 
-        if (contentType.includes('application/json')) {
-            let data = await response.json();
-            
-            // Generic Bad Boy branding for all responses
-            const addBadBoyTag = (obj) => {
-                if (obj && typeof obj === 'object') {
-                    if (obj.title) obj.title = obj.title + " [ BAD BOY ]";
-                    if (obj.name) obj.name = obj.name + " [ BAD BOY ]";
-                    if (obj.plan) obj.plan = obj.plan + " [ BAD BOY ]";
-                }
-                return obj;
-            };
-            
-            data = addBadBoyTag(data);
-            return res.status(response.status).json(data);
-        } else {
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
-            return res.status(response.status).send(buffer);
-        }
-
-    } catch (error) {
-        return res.status(500).json({ 
-            code: 500, 
-            message: "Proxy Error: " + error.message,
-            status: "ERROR"
-        });
-    }
+    const data = await response.json();
+    return res.status(response.status).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }
