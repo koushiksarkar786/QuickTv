@@ -1,89 +1,116 @@
-// quicktv-client.js
-class QuickTVClient {
-    constructor() {
-        this.baseUrl = "https://apis.sharechat.com";
-        this.deviceId = "6caec8fc10dee519";
-        this.userId = "3377779474";
-        
-        // Premium credentials from the smali/dex analysis
-        this.headers = {
-            "host": "apis.sharechat.com",
-            "cache-control": "no-cache",
-            "x-sharechat-userid": this.userId,
-            "x-sharechat-secret": "e91c564faeac1dee8135",
-            "code-push-version": "20261004",
-            "app-version": "202615003",
-            "app-version-name": "2026.15.03",
-            "device-id": this.deviceId,
-            "client-type": "android",
-            "device-high-performing": "true",
-            "device-ram-gb": "3",
-            "locale-language": "Hindi",
-            "locale-skin": "ENGLISH",
-            "locale-skin-language": "English",
-            "session-id": `${this.userId}_b2de8cd3-ab57-4348-8013-ce15111a7c33`,
-            "x-sharechat-install-time": "1781458702",
-            "x-tenant": "quicktv",
-            "auth-version": "V2",
-            "x-sharechat-auth-session-id": "35e96e72-dda6-47d8-9dc6-229899cb3b85",
-            "x-sharechat-auth-token": "25efe4b6de088d05c888",
-            "client": "Android",
-            "package-name": "in.mohalla.quicktv",
-            "os-version": "29",
-            "user-agent": "Mozilla/5.0 (Linux; Android 10; Redmi Note 7S Build/QKQ1.190910.002;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.-001.484576 Mobile Safari/537.36",
-            "region": "maharashtra",
-            "city": "mumbai",
-            "isp": "reliance jio infocomm limited",
-            "country-short": "in",
-            "advertising-id": "da3a7af4-6991-421f-8750-d548adcee566",
-            "radiotype": "wifi",
-            "accept-encoding": "gzip",
-            "accept": "application/json",
-            "content-type": "application/json"
-        };
-    }
-
-    // Make authenticated request
-    async request(endpoint, method = 'GET', body = null) {
-        const url = `${this.baseUrl}${endpoint}`;
-        const options = {
-            method: method,
-            headers: this.headers,
-        };
-        
-        if (body && method !== 'GET') {
-            options.body = JSON.stringify(body);
-        }
-
-        const response = await fetch(url, options);
-        
-        if (response.ok) {
-            return await response.json();
-        }
-        throw new Error(`Request failed: ${response.status}`);
-    }
-
-    // Get subscription management page
-    async getSubscriptionManage() {
-        return this.request('/quicktv-service/v2/public/quicktv/subscription/manage');
-    }
-
-    // Get subscription state (Premium status)
-    async getSubscriptionState() {
-        // From the proxy - this returns premium status
-        return {
+export default async function handler(req, res) {
+    const urlPath = req.headers['x-invoke-path'] || req.url;
+    const method = req.method;
+    
+    res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    
+    // ============ QUICKTV FAKE PREMIUM RESPONSES ============
+    
+    // 1. Subscription Manage endpoint
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/manage')) {
+        return res.status(200).json({
+            status: "success",
             code: 200,
-            message: "Success",
             data: {
-                subStat: "2",  // Premium active
-                mc: "0"
+                isActive: true,
+                planType: "premium",
+                planName: "QuickTV Premium [ BAD BOY ]",
+                validTill: "2099-12-31T23:59:59Z",
+                autoRenew: true,
+                features: ["ad_free", "downloads", "hd_quality", "offline_mode"]
             }
-        };
+        });
     }
-
-    // Get full subscription details
-    async getSubscriptionDetails() {
-        return {
+    
+    // 2. Subscription status/state endpoint
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/status') ||
+        urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/state')) {
+        return res.status(200).json({
+            status: "success",
+            code: 200,
+            data: {
+                subStat: "active",
+                plan: "QuickTV Premium [ BAD BOY ]",
+                expiryDate: "2099-12-31",
+                isLifetime: true,
+                features: {
+                    adsEnabled: false,
+                    maxQuality: "1080p",
+                    downloadsEnabled: true,
+                    multiDevice: true
+                }
+            }
+        });
+    }
+    
+    // 3. Check if user has active subscription
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/check')) {
+        return res.status(200).json({
+            status: "success",
+            hasActiveSubscription: true,
+            isTrial: false,
+            daysRemaining: 99999
+        });
+    }
+    
+    // 4. Premium content access (video playback)
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/content/premium/') ||
+        urlPath.includes('/quicktv-service/v2/public/quicktv/video/premium')) {
+        return res.status(200).json({
+            status: "success",
+            hasAccess: true,
+            message: "Premium content unlocked"
+        });
+    }
+    
+    // 5. Ad removal endpoint
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/ads/')) {
+        return res.status(200).json({
+            status: "success",
+            adsEnabled: false,
+            message: "Premium user - no ads"
+        });
+    }
+    
+    // 6. Download/premium feature access
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/download/')) {
+        return res.status(200).json({
+            status: "success",
+            canDownload: true,
+            maxDownloads: 999,
+            message: "Premium download access granted"
+        });
+    }
+    
+    // 7. User profile with premium badge
+    if (urlPath.includes('/quicktv-service/v2/public/quicktv/user/profile')) {
+        return res.status(200).json({
+            status: "success",
+            data: {
+                userId: "3377779474",
+                isPremium: true,
+                premiumBadge: "👑 BAD BOY 👑",
+                joinDate: "2024-01-01"
+            }
+        });
+    }
+    
+    // ============ ANALYTICS / HEARTBEAT (ignore) ============
+    const isAnalyticsUrl = urlPath.includes('/heartbeat') || 
+                          urlPath.includes('/impression') || 
+                          urlPath.includes('/analytics') ||
+                          urlPath.includes('/track');
+    if (isAnalyticsUrl) {
+        return res.status(200).json({ status: 200, message: "SUCCESS", data: null });
+    }
+    
+    // ============ STORYMAX FAKE PREMIUM (your existing code) ============
+    if (urlPath.includes('/profile/subscription/state')) {
+        return res.status(200).json({ code: 200, message: "Success", data: { subStat: "2", mc: "0" } });
+    }
+    
+    if (urlPath.includes('/profile/subscription') && !urlPath.includes('/state')) {
+        return res.status(200).json({
             code: 200,
             message: "Success",
             data: {
@@ -92,108 +119,108 @@ class QuickTVClient {
                 cta: "Enjoy Premium",
                 valdTxt: "Lifetime Active",
                 pvend: "JUSPAY",
-                sectionTile: {
-                    id: "18",
-                    lyt: "TS1",
-                    acttxt: "",
-                    text: "Top 10"
-                },
+                sectionTile: { id: "18", lyt: "TS1", acttxt: "", text: "Top 10" },
                 valEp: 4102444800000,
                 mdActv: true
             }
-        };
-    }
-
-    // Get feed/videos
-    async getFeed(category = 'recommended', page = 1) {
-        return this.request(`/feedservice/v1/feed?category=${category}&page=${page}`);
-    }
-
-    // Get show details
-    async getShowDetails(showId) {
-        return this.request(`/content-service/v2/shows/${showId}`);
-    }
-
-    // Get episodes for a show
-    async getShowEpisodes(showId, page = 1) {
-        return this.request(`/content-service/v2/shows/${showId}/episodes?page=${page}`);
-    }
-
-    // Watch/stream content
-    async getStreamUrl(contentId) {
-        return this.request(`/streaming-service/v1/content/${contentId}/playback`);
-    }
-
-    // Update watch progress
-    async updateWatchProgress(contentId, progress, duration) {
-        return this.request('/feedservice/v1/shows/watched', 'POST', {
-            contentId: contentId,
-            progress: progress,
-            duration: duration,
-            timestamp: Date.now()
         });
     }
-
-    // Search content
-    async search(query, page = 1) {
-        return this.request(`/search-service/v2/search?q=${encodeURIComponent(query)}&page=${page}`);
+    
+    if (urlPath.includes('/feedservice/v1/shows/watched')) {
+        return res.status(200).json({ code: 200, message: "Updated lastwatched", data: null });
     }
-
-    // Get user history
-    async getHistory(page = 1) {
-        return this.request(`/user-service/v1/history?page=${page}`);
+    
+    // ============ PROXY TO ORIGINAL API ============
+    // Determine target API based on path
+    let targetBaseUrl = "https://api.storymax.app";
+    if (urlPath.includes('/quicktv-service/')) {
+        targetBaseUrl = "https://apis.sharechat.com";
     }
-
-    // Get recommendations
-    async getRecommendations(limit = 20) {
-        return this.request(`/recommendation-service/v1/recommendations?limit=${limit}`);
-    }
-
-    // Get categories/Genres
-    async getCategories() {
-        return this.request('/content-service/v1/categories');
-    }
-
-    // Get trending content
-    async getTrending(timeframe = 'week', limit = 20) {
-        return this.request(`/trending-service/v1/trending?timeframe=${timeframe}&limit=${limit}`);
-    }
-
-    // Get user profile
-    async getUserProfile() {
-        return this.request(`/user-service/v1/profile/${this.userId}`);
-    }
-}
-
-// Usage example
-async function main() {
-    const client = new QuickTVClient();
+    
+    const targetUrl = targetBaseUrl + urlPath;
     
     try {
-        // Check subscription status (Premium)
-        const subState = await client.getSubscriptionState();
-        console.log('Subscription Status:', subState);
+        // Build headers
+        const headers = { ...req.headers };
+        headers['host'] = new URL(targetBaseUrl).host;
+        delete headers['accept-encoding'];
+        delete headers['content-length'];
+        delete headers['x-request-id'];
+        delete headers['x-b3-traceid'];
+        delete headers['x-cloud-trace-context'];
         
-        // Get subscription management
-        const manage = await client.getSubscriptionManage();
-        console.log('Manage Page:', manage);
+        // QuickTV specific headers (your working credentials)
+        if (urlPath.includes('/quicktv-service/')) {
+            headers['x-sharechat-userid'] = '3377779474';
+            headers['x-sharechat-secret'] = 'e91c564faeac1dee8135';
+            headers['device-id'] = '6caec8fc10dee519';
+            headers['x-sharechat-auth-token'] = '25efe4b6de088d05c888';
+            headers['client-type'] = 'android';
+            headers['app-version'] = '202615003';
+            headers['auth-version'] = 'V2';
+            headers['x-tenant'] = 'quicktv';
+            headers['accept'] = 'application/json';
+            headers['content-type'] = 'application/json';
+        }
         
-        // Get feed
-        const feed = await client.getFeed('recommended', 1);
-        console.log('Feed items:', feed.data?.items?.length || 0);
+        // StoryMax premium credentials
+        if (targetBaseUrl === "https://api.storymax.app") {
+            headers['deviceid'] = "6caec8fc10dee519";
+            headers['authorization'] = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVkRGF0ZSI6IjIwMjYtMDItMDEgMjI6Mjk6NDQuMjMiLCJzZXNzaW9uSWQiOiIxMjQ5MjM4MyIsImRldmljZUlkIjoiNjkwZmM1ODNiNzM5ODM0Iiwic3ViIjoiODM2MyIsImV4cCI6MTc4MTY4MTI4Nn0.AM0mvoEwlxPothDJ4L_vsiJS7IgbPwAEjGI2fyBxdI0";
+            headers['os'] = "Android 15 (API 29)";
+            headers['platform'] = "0";
+            headers['appversion'] = "12";
+            headers['network_type'] = 'WIFI';
+        }
         
-        // Search for content
-        const searchResults = await client.search("action movie");
-        console.log('Search results:', searchResults);
+        const fetchOptions = {
+            method: method,
+            headers: headers,
+        };
         
-        // Get trending
-        const trending = await client.getTrending('week', 10);
-        console.log('Trending:', trending);
+        if (method !== 'GET' && method !== 'HEAD' && req.body) {
+            fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+        }
+        
+        const response = await fetch(targetUrl, fetchOptions);
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/json')) {
+            let data = await response.json();
+            
+            // Apply Bad Boy branding if needed
+            const applyBadBoyBranding = (obj) => {
+                const brandTag = " \n [ BAD BOY ] ";
+                const targetKeys = ['title', 'name', 'drama_name', 'text', 'language'];
+                
+                if (typeof obj === 'object' && obj !== null) {
+                    for (let key in obj) {
+                        if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
+                            if (!obj[key].includes('[ BAD BOY ]')) {
+                                obj[key] = obj[key].replace(/\[ MODS \]/g, '').replace(/\[ REAL APK \]/g, '').replace(/\[ \]/g, '').trim() + brandTag;
+                            }
+                        } else if (typeof obj[key] === 'object') {
+                            applyBadBoyBranding(obj[key]);
+                        }
+                    }
+                }
+            };
+            
+            applyBadBoyBranding(data);
+            return res.status(response.status).json(data);
+        } else {
+            const arrayBuffer = await response.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            
+            response.headers.forEach((value, key) => {
+                if (key !== 'content-encoding' && key !== 'content-length') {
+                    res.setHeader(key, value);
+                }
+            });
+            return res.status(response.status).send(buffer);
+        }
         
     } catch (error) {
-        console.error('Error:', error.message);
+        return res.status(500).json({ code: 500, message: "Proxy Error: " + error.message });
     }
 }
-
-// Export for use in Node.js/Express
-module.exports = { QuickTVClient };
