@@ -4,10 +4,10 @@ export default async function handler(req, res) {
     
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
     
-    // ============ QUICKTV REAL FORMAT RESPONSES ============
+    // ============ COMPLETE QUICKTV FAKE RESPONSES ============
     
-    // Subscription Manage endpoint - EXACT format jo app chahta hai
-    if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/manage')) {
+    // 1. Main subscription manage page
+    if (urlPath === '/' || urlPath === '/quicktv-service/v2/public/quicktv/subscription/manage') {
         return res.status(200).json({
             "backgroundImage": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/f42ea28_1754035031431_sc.webp",
             "state": "ACTIVE_SUBSCRIPTION",
@@ -15,23 +15,14 @@ export default async function handler(req, res) {
             "productId": "sc_episodic_quarterly_7",
             "banner": {
                 "bannerCtaText": "ACTIVE",
-                "bannerTitle": "QuickTV Premium",
+                "bannerTitle": "QuickTV Premium [ BAD BOY ]",
                 "bannerPaymentKey": "Expiring on",
                 "bannerPaymentValue": "31 December 2099",
                 "bannerBenefitsTitle": "Benefits",
                 "benefits": [
-                    {
-                        "image": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/1c70817a_1753944053666_sc.webp",
-                        "name": "Unlimited Series"
-                    },
-                    {
-                        "image": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/11d8037c_1753944053663_sc.webp",
-                        "name": "No Ads"
-                    },
-                    {
-                        "image": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/29f6cf98_1753944131980_sc.webp",
-                        "name": "HD Videos"
-                    }
+                    {"image": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/1c70817a_1753944053666_sc.webp", "name": "Unlimited Series"},
+                    {"image": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/11d8037c_1753944053663_sc.webp", "name": "No Ads"},
+                    {"image": "https://cdn-sc-g.sharechat.com/33d5318_1c8/tools/29f6cf98_1753944131980_sc.webp", "name": "HD Videos"}
                 ]
             },
             "helpAndSupport": null,
@@ -40,77 +31,108 @@ export default async function handler(req, res) {
         });
     }
     
-    // Subscription status/check endpoint
-    if (urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/status') ||
-        urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/state') ||
-        urlPath.includes('/quicktv-service/v2/public/quicktv/subscription/check')) {
+    // 2. Subscription status check
+    if (urlPath.includes('/subscription/status') || urlPath.includes('/subscription/state')) {
         return res.status(200).json({
             "state": "ACTIVE_SUBSCRIPTION",
+            "isActive": true,
+            "planType": "premium",
+            "expiryDate": "2099-12-31T23:59:59Z"
+        });
+    }
+    
+    // 3. User profile endpoint
+    if (urlPath.includes('/user/profile') || urlPath.includes('/me')) {
+        return res.status(200).json({
+            "userId": "3377779474",
             "isPremium": true,
-            "isSubscribed": true,
-            "expiryDate": "2099-12-31",
-            "productId": "sc_episodic_quarterly_7"
+            "premiumBadge": "👑 BAD BOY 👑",
+            "subscriptionState": "ACTIVE_SUBSCRIPTION",
+            "name": "Bad Boy User",
+            "email": "badboy@premium.com"
         });
     }
     
-    // Premium content access check
-    if (urlPath.includes('/quicktv-service/v2/public/quicktv/content/premium/access')) {
+    // 4. Video playback access
+    if (urlPath.includes('/video/playback') || urlPath.includes('/content/access')) {
         return res.status(200).json({
-            hasAccess: true,
-            isPremium: true,
-            message: "Premium content unlocked"
+            "canPlay": true,
+            "hasAccess": true,
+            "isPremiumContent": true,
+            "quality": "1080p",
+            "adsEnabled": false,
+            "downloadEnabled": true
         });
     }
     
-    // Video playback - allow premium videos
-    if (urlPath.includes('/quicktv-service/v2/public/quicktv/video/playback')) {
+    // 5. Feed/home data
+    if (urlPath.includes('/feed') || urlPath.includes('/home')) {
         return res.status(200).json({
-            canPlay: true,
-            isPremiumContent: true,
-            quality: "1080p",
-            adsEnabled: false
+            "status": "success",
+            "data": {
+                "shows": [],
+                "recommendations": [],
+                "premiumUser": true
+            }
         });
     }
     
-    // User profile with premium badge
-    if (urlPath.includes('/quicktv-service/v2/public/quicktv/user/profile')) {
+    // 6. Ads endpoint - return no ads
+    if (urlPath.includes('/ads') || urlPath.includes('/ad')) {
         return res.status(200).json({
-            userId: "3377779474",
-            isPremium: true,
-            premiumBadge: "👑 BAD BOY 👑",
-            subscriptionState: "ACTIVE_SUBSCRIPTION"
+            "ads": [],
+            "shouldShowAd": false,
+            "message": "Premium user - no ads"
+        });
+    }
+    
+    // 7. Downloads endpoint
+    if (urlPath.includes('/download')) {
+        return res.status(200).json({
+            "canDownload": true,
+            "maxDownloads": 999,
+            "downloadLimitReached": false
+        });
+    }
+    
+    // 8. Watch history
+    if (urlPath.includes('/history') || urlPath.includes('/watched')) {
+        return res.status(200).json({
+            "status": "success",
+            "data": []
+        });
+    }
+    
+    // 9. Any other QuickTV endpoint - default premium response
+    if (urlPath.includes('/quicktv-service/')) {
+        return res.status(200).json({
+            "status": "success",
+            "code": 200,
+            "message": "Success",
+            "data": {
+                "isPremium": true,
+                "hasAccess": true
+            }
         });
     }
     
     // ============ ANALYTICS / HEARTBEAT ============
-    const isAnalyticsUrl = urlPath.includes('/heartbeat') || 
-                          urlPath.includes('/impression') || 
-                          urlPath.includes('/analytics') ||
-                          urlPath.includes('/track') ||
-                          urlPath.includes('/event');
-    if (isAnalyticsUrl) {
-        return res.status(200).json({ status: "success", code: 200 });
+    if (urlPath.includes('/heartbeat') || urlPath.includes('/impression') || 
+        urlPath.includes('/analytics') || urlPath.includes('/track') || 
+        urlPath.includes('/event') || urlPath.includes('/log')) {
+        return res.status(200).json({ status: "success" });
     }
     
-    // ============ STORYMAX FAKE PREMIUM ============
+    // ============ STORYMAX (your existing) ============
     if (urlPath.includes('/profile/subscription/state')) {
         return res.status(200).json({ code: 200, message: "Success", data: { subStat: "2", mc: "0" } });
     }
     
-    if (urlPath.includes('/profile/subscription') && !urlPath.includes('/state')) {
+    if (urlPath.includes('/profile/subscription')) {
         return res.status(200).json({
-            code: 200,
-            message: "Success",
-            data: {
-                subStat: "2",
-                plan: "Premium Plan [ BAD BOY ]",
-                cta: "Enjoy Premium",
-                valdTxt: "Lifetime Active",
-                pvend: "JUSPAY",
-                sectionTile: { id: "18", lyt: "TS1", acttxt: "", text: "Top 10" },
-                valEp: 4102444800000,
-                mdActv: true
-            }
+            code: 200, message: "Success",
+            data: { subStat: "2", plan: "Premium Plan [ BAD BOY ]", cta: "Enjoy Premium", 
+                    valdTxt: "Lifetime Active", pvend: "JUSPAY", valEp: 4102444800000, mdActv: true }
         });
     }
     
@@ -118,93 +140,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ code: 200, message: "Updated lastwatched", data: null });
     }
     
-    // ============ PROXY TO REAL API ============
-    let targetBaseUrl = "https://api.storymax.app";
-    if (urlPath.includes('/quicktv-service/')) {
-        targetBaseUrl = "https://apis.sharechat.com";
-    }
-    
-    const targetUrl = targetBaseUrl + urlPath;
-    
-    try {
-        const headers = { ...req.headers };
-        headers['host'] = new URL(targetBaseUrl).host;
-        delete headers['accept-encoding'];
-        delete headers['content-length'];
-        delete headers['x-request-id'];
-        delete headers['x-b3-traceid'];
-        delete headers['x-cloud-trace-context'];
-        
-        // QuickTV headers
-        if (urlPath.includes('/quicktv-service/')) {
-            headers['x-sharechat-userid'] = '3377779474';
-            headers['x-sharechat-secret'] = 'e91c564faeac1dee8135';
-            headers['device-id'] = '6caec8fc10dee519';
-            headers['x-sharechat-auth-token'] = '25efe4b6de088d05c888';
-            headers['client-type'] = 'android';
-            headers['app-version'] = '202615003';
-            headers['auth-version'] = 'V2';
-            headers['x-tenant'] = 'quicktv';
-        }
-        
-        // StoryMax headers
-        if (targetBaseUrl === "https://api.storymax.app") {
-            headers['deviceid'] = "6caec8fc10dee519";
-            headers['authorization'] = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVkRGF0ZSI6IjIwMjYtMDItMDEgMjI6Mjk6NDQuMjMiLCJzZXNzaW9uSWQiOiIxMjQ5MjM4MyIsImRldmljZUlkIjoiNjkwZmM1ODNiNzM5ODM0Iiwic3ViIjoiODM2MyIsImV4cCI6MTc4MTY4MTI4Nn0.AM0mvoEwlxPothDJ4L_vsiJS7IgbPwAEjGI2fyBxdI0";
-            headers['os'] = "Android 15 (API 29)";
-            headers['platform'] = "0";
-            headers['appversion'] = "12";
-            headers['network_type'] = 'WIFI';
-        }
-        
-        const fetchOptions = {
-            method: method,
-            headers: headers,
-        };
-        
-        if (method !== 'GET' && method !== 'HEAD' && req.body) {
-            fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-        }
-        
-        const response = await fetch(targetUrl, fetchOptions);
-        const contentType = response.headers.get('content-type') || '';
-        
-        if (contentType.includes('application/json')) {
-            let data = await response.json();
-            
-            // Add Bad Boy branding
-            const applyBadBoyBranding = (obj) => {
-                const brandTag = " \n [ BAD BOY ] ";
-                const targetKeys = ['title', 'name', 'drama_name', 'text', 'language', 'bannerTitle'];
-                
-                if (typeof obj === 'object' && obj !== null) {
-                    for (let key in obj) {
-                        if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
-                            if (!obj[key].includes('[ BAD BOY ]')) {
-                                obj[key] = obj[key].replace(/\[ MODS \]/g, '').replace(/\[ REAL APK \]/g, '').replace(/\[ \]/g, '').trim() + brandTag;
-                            }
-                        } else if (typeof obj[key] === 'object') {
-                            applyBadBoyBranding(obj[key]);
-                        }
-                    }
-                }
-            };
-            
-            applyBadBoyBranding(data);
-            return res.status(response.status).json(data);
-        } else {
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
-            return res.status(response.status).send(buffer);
-        }
-        
-    } catch (error) {
-        return res.status(500).json({ code: 500, message: "Proxy Error: " + error.message });
-    }
+    // ============ FALLBACK FOR ANY OTHER REQUEST ============
+    return res.status(200).json({
+        status: "success",
+        code: 200,
+        message: "Premium access granted [ BAD BOY ]",
+        data: { isPremium: true }
+    });
 }
