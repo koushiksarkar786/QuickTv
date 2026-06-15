@@ -1,4 +1,4 @@
-// api/index.js - ShareChat QuickTV Proxy (Same pattern as Story Max)
+// api/index.js - ShareChat QuickTV Login Proxy
 
 export default async function handler(req, res) {
     const urlPath = req.headers['x-invoke-path'] || req.url;
@@ -6,10 +6,103 @@ export default async function handler(req, res) {
     const targetBaseUrl = "https://apis.sharechat.com";
 
     res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
 
-    // ============= FAKE RESPONSES FOR QUICKTV =============
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    // ============= LOGIN/OTP FAKE RESPONSES =============
     
-    // Subscription Manage Fake Response
+    // Send OTP - Always success
+    if (urlPath.includes('/auth/v2/otp/send') || urlPath.includes('/auth/otp/send')) {
+        return res.status(200).json({
+            code: 200,
+            message: "OTP sent successfully",
+            data: {
+                requestId: "mock_" + Date.now(),
+                retryAfter: 30,
+                expiresIn: 300,
+                method: "sms",
+                isNewUser: true
+            }
+        });
+    }
+
+    // Verify OTP - Always success with valid tokens
+    if (urlPath.includes('/auth/v2/otp/verify') || urlPath.includes('/auth/otp/verify')) {
+        return res.status(200).json({
+            code: 200,
+            message: "Login successful",
+            data: {
+                userId: "3377779474",
+                authToken: "25efe4b6de088d05c888",
+                refreshToken: "mock_refresh_" + Date.now(),
+                sessionId: "3377779474_" + Math.random().toString(36).substring(2),
+                expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+                isPremium: true,
+                subscriptionStatus: "active"
+            }
+        });
+    }
+
+    // Social Login (Google/FB)
+    if (urlPath.includes('/auth/v2/social/login')) {
+        return res.status(200).json({
+            code: 200,
+            message: "Social login successful",
+            data: {
+                userId: "3377779474",
+                authToken: "25efe4b6de088d05c888",
+                refreshToken: "mock_refresh_" + Date.now(),
+                sessionId: "3377779474_" + Math.random().toString(36).substring(2),
+                isNewUser: false,
+                isPremium: true
+            }
+        });
+    }
+
+    // Guest Login / Device Login
+    if (urlPath.includes('/auth/v2/guest/login') || urlPath.includes('/auth/device/login')) {
+        return res.status(200).json({
+            code: 200,
+            message: "Guest login successful",
+            data: {
+                userId: "3377779474",
+                authToken: "25efe4b6de088d05c888",
+                deviceId: "6caec8fc10dee519",
+                sessionId: "3377779474_" + Math.random().toString(36).substring(2),
+                isGuest: false,
+                canConvert: true
+            }
+        });
+    }
+
+    // Token Refresh
+    if (urlPath.includes('/auth/v2/token/refresh')) {
+        return res.status(200).json({
+            code: 200,
+            message: "Token refreshed",
+            data: {
+                authToken: "25efe4b6de088d05c888",
+                refreshToken: "mock_refresh_new_" + Date.now(),
+                expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+            }
+        });
+    }
+
+    // Logout
+    if (urlPath.includes('/auth/v2/logout')) {
+        return res.status(200).json({
+            code: 200,
+            message: "Logged out successfully"
+        });
+    }
+
+    // ============= SUBSCRIPTION FAKE RESPONSES (Premium Bypass) =============
+    
     if (urlPath.includes('/subscription/manage')) {
         return res.status(200).json({
             code: 200,
@@ -18,14 +111,12 @@ export default async function handler(req, res) {
                 subscriptionStatus: "active",
                 plan: "QuickTV Premium [ BAD BOY ]",
                 validity: "Lifetime Active",
-                expiryDate: 4102444800000,
-                features: ["No Ads", "HD Quality", "Downloads Available", "Multi-device Support"],
-                isPremium: true
+                isPremium: true,
+                features: ["No Ads", "HD Quality", "Downloads"]
             }
         });
     }
 
-    // Subscription State Fake Response
     if (urlPath.includes('/subscription/state')) {
         return res.status(200).json({
             code: 200,
@@ -39,20 +130,32 @@ export default async function handler(req, res) {
         });
     }
 
-    // Watch History Fake Response
-    if (urlPath.includes('/history') || urlPath.includes('/watched')) {
+    // ============= USER PROFILE RESPONSES =============
+    
+    if (urlPath.includes('/user/v1/profile')) {
         return res.status(200).json({
             code: 200,
             message: "Success",
             data: {
-                status: "updated",
-                lastUpdated: Date.now()
+                userId: "3377779474",
+                userName: "Bad Boy Premium",
+                email: "badboy@premium.com",
+                phone: "+91XXXXXXXXXX",
+                isVerified: true,
+                isPremium: true,
+                createdAt: Date.now() - 365 * 24 * 60 * 60 * 1000,
+                profileImage: "https://example.com/profile.jpg"
             }
         });
     }
 
-    // Analytics/Heartbeat Fake Response
-    const isAnalyticsUrl = urlPath.includes('/heartbeat') || urlPath.includes('/impression') || urlPath.includes('/analytics') || urlPath.includes('/track');
+    // ============= ANALYTICS/TRACKING FAKE RESPONSES =============
+    
+    const isAnalyticsUrl = urlPath.includes('/heartbeat') || 
+                          urlPath.includes('/impression') || 
+                          urlPath.includes('/analytics') || 
+                          urlPath.includes('/track') ||
+                          urlPath.includes('/event');
     if (isAnalyticsUrl) {
         return res.status(200).json({
             status: 200,
@@ -62,15 +165,16 @@ export default async function handler(req, res) {
     }
 
     // ============= BAD BOY BRANDING INJECTOR =============
+    
     const applyBadBoyBranding = (obj) => {
         const brandTag = " \n [ BAD BOY ] ";
-        const targetKeys = ['title', 'name', 'drama_name', 'text', 'language', 'showName', 'videoName', 'category', 'description'];
+        const targetKeys = ['title', 'name', 'drama_name', 'text', 'language', 'showName', 'videoName', 'category', 'description', 'userName'];
 
         if (typeof obj === 'object' && obj !== null) {
             for (let key in obj) {
                 if (typeof obj[key] === 'string' && targetKeys.includes(key)) {
                     if (!obj[key].includes('[ BAD BOY ]')) {
-                        obj[key] = obj[key].replace(/\[ MODS \]/g, '').replace(/\[ REAL APK \]/g, '').replace(/\[ \]/g, '').trim() + brandTag;
+                        obj[key] = obj[key].replace(/\[.*?\]/g, '').trim() + brandTag;
                     }
                 } else if (typeof obj[key] === 'object') {
                     applyBadBoyBranding(obj[key]);
@@ -79,7 +183,9 @@ export default async function handler(req, res) {
         }
     };
 
-    // ============= QUICKTV PREMIUM CREDENTIALS (from your request) =============
+    // ============= REAL REQUEST PROXY (WITH PREMIUM HEADERS) =============
+    
+    // Premium credentials (force login)
     const QUICKTV_PREMIUM = {
         userId: "3377779474",
         secret: "e91c564faeac1dee8135",
@@ -96,33 +202,22 @@ export default async function handler(req, res) {
         packageName: "in.mohalla.quicktv",
         tenant: "quicktv",
         client: "Android",
-        osVersion: "29",
-        localeLanguage: "Hindi",
-        localeSkin: "ENGLISH",
-        localeSkinLanguage: "English",
-        region: "maharashtra",
-        city: "mumbai",
-        isp: "reliance jio infocomm limited",
-        countryShort: "in",
-        radioType: "wifi",
-        userAgent: "Mozilla/5.0 (Linux; Android 10; Redmi Note 7S Build/QKQ1.190910.002;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4638.74 Mobile Safari/537.36"
+        osVersion: "29"
     };
 
     try {
         const targetUrl = targetBaseUrl + urlPath;
-        
         console.log(`[Proxy] ${method} ${targetUrl}`);
 
-        // Prepare headers
         const headers = { ...req.headers };
         
-        // Remove problematic headers
+        // Clean headers
         delete headers['host'];
         delete headers['accept-encoding'];
         delete headers['content-length'];
         delete headers['connection'];
         
-        // Override with premium credentials (FORCE PREMIUM)
+        // FORCE PREMIUM LOGIN HEADERS
         headers['x-sharechat-userid'] = QUICKTV_PREMIUM.userId;
         headers['x-sharechat-secret'] = QUICKTV_PREMIUM.secret;
         headers['x-sharechat-auth-token'] = QUICKTV_PREMIUM.authToken;
@@ -139,79 +234,37 @@ export default async function handler(req, res) {
         headers['x-tenant'] = QUICKTV_PREMIUM.tenant;
         headers['client'] = QUICKTV_PREMIUM.client;
         headers['os-version'] = QUICKTV_PREMIUM.osVersion;
-        headers['locale-language'] = QUICKTV_PREMIUM.localeLanguage;
-        headers['locale-skin'] = QUICKTV_PREMIUM.localeSkin;
-        headers['locale-skin-language'] = QUICKTV_PREMIUM.localeSkinLanguage;
-        headers['region'] = QUICKTV_PREMIUM.region;
-        headers['city'] = QUICKTV_PREMIUM.city;
-        headers['isp'] = QUICKTV_PREMIUM.isp;
-        headers['country-short'] = QUICKTV_PREMIUM.countryShort;
-        headers['radiotype'] = QUICKTV_PREMIUM.radioType;
-        headers['user-agent'] = QUICKTV_PREMIUM.userAgent;
         
-        // Additional required headers
-        headers['cache-control'] = 'no-cache';
-        headers['accept'] = 'application/json';
-        headers['accept-charset'] = 'UTF-8';
-        headers['content-type'] = 'application/json';
-        
-        // Add timestamp
-        headers['ts'] = Math.floor(Date.now() / 1000).toString();
-        
-        // IP Spoofing (Mumbai, Maharashtra)
+        // IP Spoofing (Indian IP)
         headers['x-forwarded-for'] = '122.168.2.40';
         headers['x-real-ip'] = '122.168.2.40';
-        headers['x-client-ip'] = '122.168.2.40';
         
-        // Remove tracking headers
-        delete headers['x-request-id'];
-        delete headers['x-b3-traceid'];
-        delete headers['x-cloud-trace-context'];
-        delete headers['x-vercel-*'];
-        
-        // Prepare fetch options
         const fetchOptions = {
             method: method,
             headers: headers,
         };
 
-        // Add body for non-GET requests
         if (method !== 'GET' && method !== 'HEAD' && req.body) {
             fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
         }
 
-        // Make the actual API call
         const response = await fetch(targetUrl, fetchOptions);
         const contentType = response.headers.get('content-type') || '';
 
-        // Handle JSON response
         if (contentType.includes('application/json')) {
             let data = await response.json();
-            
-            // Inject Bad Boy branding
             applyBadBoyBranding(data);
             
-            // Add premium status to response
+            // Add premium flag to response
             if (data.data && typeof data.data === 'object') {
                 data.data.isPremiumProxy = true;
-                data.data.proxyStatus = "active";
-                data.data.poweredBy = "BAD BOY";
+                data.data.proxyPoweredBy = "BAD BOY";
             }
             
-            console.log(`[Proxy] Response status: ${response.status}`);
             return res.status(response.status).json(data);
-        } 
-        // Handle binary/non-JSON response
-        else {
+        } else {
             const arrayBuffer = await response.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-
-            response.headers.forEach((value, key) => {
-                if (key !== 'content-encoding' && key !== 'content-length') {
-                    res.setHeader(key, value);
-                }
-            });
-            
             return res.status(response.status).send(buffer);
         }
 
